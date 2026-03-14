@@ -130,7 +130,7 @@ export class DynamoKarmaRepository implements KarmaRepository {
 
       const pageItems = (queryResult.Items ?? [])
         .map((item) => ({
-          userId: typeof item.discordUserId === "string" ? item.discordUserId : "",
+          userId: this.readDiscordUserId(item),
           karmaTotal: Number(item.karmaTotal ?? 0),
           karmaMax: Number(item.karmaMax ?? 0),
           lastActivityAt:
@@ -170,7 +170,7 @@ export class DynamoKarmaRepository implements KarmaRepository {
 
     return (scanResult.Items ?? [])
       .map((item) => ({
-        userId: typeof item.discordUserId === "string" ? item.discordUserId : "",
+        userId: this.readDiscordUserId(item),
         karmaTotal: Number(item.karmaTotal ?? 0),
         karmaMax: Number(item.karmaMax ?? 0),
         lastActivityAt:
@@ -179,5 +179,21 @@ export class DynamoKarmaRepository implements KarmaRepository {
       .filter((item) => item.userId.length > 0)
       .sort((left, right) => right.karmaTotal - left.karmaTotal)
       .slice(0, limit);
+  }
+
+  private readDiscordUserId(item: Record<string, unknown>): string {
+    if (typeof item.discordUserId === "string" && item.discordUserId.length > 0) {
+      return item.discordUserId;
+    }
+
+    // Backward compatibility for rows written before discordUserId existed.
+    if (typeof item.userId === "string") {
+      const splitIndex = item.userId.lastIndexOf("#");
+      if (splitIndex > -1 && splitIndex + 1 < item.userId.length) {
+        return item.userId.slice(splitIndex + 1);
+      }
+    }
+
+    return "";
   }
 }

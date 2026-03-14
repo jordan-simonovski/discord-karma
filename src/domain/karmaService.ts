@@ -76,7 +76,17 @@ export class KarmaService {
       event.scope,
       LEADERBOARD_SCAN_LIMIT
     );
+    console.info("leaderboard:repo_entries", {
+      guildId: event.guildId,
+      scope: event.scope,
+      count: entries.length
+    });
     const filteredEntries = await this.filterGuildMembers(event.guildId, entries);
+    console.info("leaderboard:filtered_entries", {
+      guildId: event.guildId,
+      scope: event.scope,
+      count: filteredEntries.length
+    });
     return {
       shouldPersist: false,
       message: formatLeaderboardMessage(
@@ -99,6 +109,11 @@ export class KarmaService {
           isMember: await this.guildMembershipChecker.isUserInGuild(guildId, entry.userId)
         }))
       );
+      console.info("leaderboard:membership_batch", {
+        guildId,
+        checked: batch.length,
+        passed: batchChecks.filter((item) => item.isMember).length
+      });
       checks.push(...batchChecks);
     }
 
