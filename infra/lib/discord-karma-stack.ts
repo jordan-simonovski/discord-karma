@@ -31,6 +31,11 @@ export class DiscordKarmaStack extends Stack {
       partitionKey: { name: "userId", type: AttributeType.STRING },
       billingMode: BillingMode.PAY_PER_REQUEST
     });
+    table.addGlobalSecondaryIndex({
+      indexName: "GuildKarmaTotalIndex",
+      partitionKey: { name: "guildId", type: AttributeType.STRING },
+      sortKey: { name: "karmaTotal", type: AttributeType.NUMBER }
+    });
 
     const handler = new LambdaFunction(this, "DiscordKarmaHandler", {
       runtime: Runtime.NODEJS_22_X,

@@ -3,6 +3,7 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import {
   DynamoDBDocumentClient,
+  QueryCommand,
   ScanCommand,
   UpdateCommand
 } from "@aws-sdk/lib-dynamodb";
@@ -12,6 +13,8 @@ import type { LeaderboardScope } from "../platforms/types";
 function scopedUserId(guildId: string, userId: string): string {
   return `${guildId}#${userId}`;
 }
+
+const LEADERBOARD_QUERY_PAGE_SIZE = 25;
 
 export class DynamoKarmaRepository implements KarmaRepository {
   public constructor(
@@ -33,7 +36,7 @@ export class DynamoKarmaRepository implements KarmaRepository {
         TableName: this.tableName,
         Key: { userId: scopedId },
         UpdateExpression:
-          "SET guildId = if_not_exists(guildId, :guildId), discordUserId = if_not_exists(discordUserId, :discordUserId), karmaTotal = if_not_exists(karmaTotal, :zero) + :delta, lastActivityAt = :now",
+          "SET guildId = :guildId, discordUserId = :discordUserId, karmaTotal = if_not_exists(karmaTotal, :zero) + :delta, lastActivityAt = :now",
         ExpressionAttributeValues: {
           ":guildId": guildId,
           ":discordUserId": userId,
@@ -84,38 +87,13 @@ export class DynamoKarmaRepository implements KarmaRepository {
     limit: number
   ): Promise<KarmaRecord[]> {
     const cutoff = this.cutoffIso(scope);
-    const filterExpression = cutoff
-      ? "guildId = :guildId AND attribute_exists(lastActivityAt) AND lastActivityAt >= :cutoff"
-      : "guildId = :guildId";
-    const scanResult = await this.client.send(
-      new ScanCommand({
-        TableName: this.tableName,
-        ProjectionExpression:
-          "userId, discordUserId, guildId, karmaTotal, karmaMax, lastActivityAt",
-        FilterExpression: filterExpression,
-        ExpressionAttributeValues: cutoff
-          ? { ":guildId": guildId, ":cutoff": cutoff }
-          : { ":guildId": guildId }
-      })
-    );
+    const queryRecords = await this.queryLeaderboardByIndex(guildId, cutoff, limit);
+    if (queryRecords.length > 0) {
+      return queryRecords;
+    }
 
-    const records = (scanResult.Items ?? [])
-      .map((item) => ({
-        userId:
-          typeof item.discordUserId === "string"
-            ? item.discordUserId
-            : typeof item.userId === "string" && item.userId.includes("#")
-              ? item.userId.slice(item.userId.indexOf("#") + 1)
-              : "",
-        karmaTotal: Number(item.karmaTotal ?? 0),
-        karmaMax: Number(item.karmaMax ?? 0),
-        lastActivityAt:
-          typeof item.lastActivityAt === "string" ? item.lastActivityAt : undefined
-      }))
-      .filter((item) => item.userId.length > 0)
-      .sort((left, right) => right.karmaTotal - left.karmaTotal);
-
-    return records.slice(0, limit);
+    // Fallback keeps compatibility while the new GSI is deploying.
+    return this.scanLeaderboardFallback(guildId, cutoff, limit);
   }
 
   private cutoffIso(scope: LeaderboardScope): string | null {
@@ -126,5 +104,80 @@ export class DynamoKarmaRepository implements KarmaRepository {
     const now = Date.now();
     const periodDays = scope === "week" ? 7 : 30;
     return new Date(now - periodDays * 24 * 60 * 60 * 1000).toISOString();
+  }
+
+  private async queryLeaderboardByIndex(
+    guildId: string,
+    cutoffIso: string | null,
+    limit: number
+  ): Promise<KarmaRecord[]> {
+    const results: KarmaRecord[] = [];
+    let exclusiveStartKey: Record<string, unknown> | undefined;
+
+    do {
+      const queryResult = await this.client.send(
+        new QueryCommand({
+          TableName: this.tableName,
+          IndexName: "GuildKarmaTotalIndex",
+          KeyConditionExpression: "guildId = :guildId",
+          ExpressionAttributeValues: { ":guildId": guildId },
+          ProjectionExpression: "discordUserId, karmaTotal, karmaMax, lastActivityAt",
+          ScanIndexForward: false,
+          Limit: LEADERBOARD_QUERY_PAGE_SIZE,
+          ExclusiveStartKey: exclusiveStartKey
+        })
+      );
+
+      const pageItems = (queryResult.Items ?? [])
+        .map((item) => ({
+          userId: typeof item.discordUserId === "string" ? item.discordUserId : "",
+          karmaTotal: Number(item.karmaTotal ?? 0),
+          karmaMax: Number(item.karmaMax ?? 0),
+          lastActivityAt:
+            typeof item.lastActivityAt === "string" ? item.lastActivityAt : undefined
+        }))
+        .filter((item) => item.userId.length > 0)
+        .filter((item) =>
+          cutoffIso ? Boolean(item.lastActivityAt && item.lastActivityAt >= cutoffIso) : true
+        );
+
+      results.push(...pageItems);
+      exclusiveStartKey = queryResult.LastEvaluatedKey as Record<string, unknown> | undefined;
+    } while (results.length < limit && exclusiveStartKey);
+
+    return results.slice(0, limit);
+  }
+
+  private async scanLeaderboardFallback(
+    guildId: string,
+    cutoffIso: string | null,
+    limit: number
+  ): Promise<KarmaRecord[]> {
+    const filterExpression = cutoffIso
+      ? "guildId = :guildId AND attribute_exists(lastActivityAt) AND lastActivityAt >= :cutoff"
+      : "guildId = :guildId";
+    const scanResult = await this.client.send(
+      new ScanCommand({
+        TableName: this.tableName,
+        ProjectionExpression:
+          "discordUserId, guildId, karmaTotal, karmaMax, lastActivityAt",
+        FilterExpression: filterExpression,
+        ExpressionAttributeValues: cutoffIso
+          ? { ":guildId": guildId, ":cutoff": cutoffIso }
+          : { ":guildId": guildId }
+      })
+    );
+
+    return (scanResult.Items ?? [])
+      .map((item) => ({
+        userId: typeof item.discordUserId === "string" ? item.discordUserId : "",
+        karmaTotal: Number(item.karmaTotal ?? 0),
+        karmaMax: Number(item.karmaMax ?? 0),
+        lastActivityAt:
+          typeof item.lastActivityAt === "string" ? item.lastActivityAt : undefined
+      }))
+      .filter((item) => item.userId.length > 0)
+      .sort((left, right) => right.karmaTotal - left.karmaTotal)
+      .slice(0, limit);
   }
 }

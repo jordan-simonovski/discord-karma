@@ -87,7 +87,11 @@ export class DiscordInteractionAdapter
     if (!targetUserId || !symbolRun) {
       return null;
     }
-    const targetIsBot = payload.data?.resolved?.users?.[targetUserId]?.bot === true;
+    const resolvedUser = payload.data?.resolved?.users?.[targetUserId];
+    if (!resolvedUser || typeof resolvedUser.bot !== "boolean") {
+      return null;
+    }
+    const targetIsBot = resolvedUser.bot;
 
     return {
       kind: "karma",

@@ -18,6 +18,7 @@ export interface GuildMembershipChecker {
 
 const LEADERBOARD_SCAN_LIMIT = 25;
 const LEADERBOARD_RESULT_LIMIT = 5;
+const MEMBERSHIP_CHECK_BATCH_SIZE = 5;
 
 export class KarmaService {
   public constructor(
@@ -84,12 +85,18 @@ export class KarmaService {
     guildId: string,
     entries: KarmaRecord[]
   ): Promise<KarmaRecord[]> {
-    const checks = await Promise.all(
-      entries.map(async (entry) => ({
-        entry,
-        isMember: await this.guildMembershipChecker.isUserInGuild(guildId, entry.userId)
-      }))
-    );
+    const checks: Array<{ entry: KarmaRecord; isMember: boolean }> = [];
+    for (let i = 0; i < entries.length; i += MEMBERSHIP_CHECK_BATCH_SIZE) {
+      const batch = entries.slice(i, i + MEMBERSHIP_CHECK_BATCH_SIZE);
+      const batchChecks = await Promise.all(
+        batch.map(async (entry) => ({
+          entry,
+          isMember: await this.guildMembershipChecker.isUserInGuild(guildId, entry.userId)
+        }))
+      );
+      checks.push(...batchChecks);
+    }
+
     return checks.filter((item) => item.isMember).map((item) => item.entry);
   }
 
