@@ -117,7 +117,17 @@ export class KarmaService {
       checks.push(...batchChecks);
     }
 
-    return checks.filter((item) => item.isMember).map((item) => item.entry);
+    const filtered = checks.filter((item) => item.isMember).map((item) => item.entry);
+    if (entries.length > 0 && filtered.length === 0) {
+      console.warn("leaderboard:membership_filter_fallback", {
+        guildId,
+        reason: "all-membership-checks-failed",
+        originalCount: entries.length
+      });
+      return entries;
+    }
+
+    return filtered;
   }
 
   private handleRejection(

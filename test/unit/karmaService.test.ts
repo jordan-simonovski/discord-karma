@@ -226,7 +226,7 @@ describe("KarmaService", () => {
     expect(result.message).not.toContain("<@u2>");
   });
 
-  it("returns empty leaderboard when none of the users are found in the guild", async () => {
+  it("falls back to unfiltered entries when membership checks reject everyone", async () => {
     const repo: KarmaRepository = {
       applyDelta: vi.fn(),
       getLeaderboard: vi.fn().mockResolvedValue([
@@ -249,6 +249,7 @@ describe("KarmaService", () => {
       scope: "week"
     });
 
-    expect(result.message).toContain("No karma activity yet.");
+    expect(result.message).toContain("1. <@u1> — 32");
+    expect(result.message).toContain("2. <@u2> — 27");
   });
 });
