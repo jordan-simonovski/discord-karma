@@ -75,19 +75,6 @@ jobs:
               },
               {
                 "name": "leaderboard",
-                "description": "Show top 5 karma users",
-                "options": [
-                  {
-                    "type": 3,
-                    "name": "scope",
-                    "description": "Choose leaderboard period",
-                    "required": true,
-                    "choices": [
-                      { "name": "week", "value": "week" },
-                      { "name": "month", "value": "month" },
-                      { "name": "all time", "value": "all" }
-                    ]
-                  }
-                ]
+                "description": "Show top 5 karma users"
               }
             ]'

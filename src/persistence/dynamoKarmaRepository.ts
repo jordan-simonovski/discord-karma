@@ -8,7 +8,6 @@ import {
   UpdateCommand
 } from "@aws-sdk/lib-dynamodb";
 import type { KarmaRecord, KarmaRepository } from "./karmaRepository";
-import type { LeaderboardScope } from "../platforms/types";
 
 function scopedUserId(guildId: string, userId: string): string {
   return `${guildId}#${userId}`;
@@ -83,32 +82,19 @@ export class DynamoKarmaRepository implements KarmaRepository {
 
   public async getLeaderboard(
     guildId: string,
-    scope: LeaderboardScope,
     limit: number
   ): Promise<KarmaRecord[]> {
-    const cutoff = this.cutoffIso(scope);
-    const queryRecords = await this.queryLeaderboardByIndex(guildId, cutoff, limit);
+    const queryRecords = await this.queryLeaderboardByIndex(guildId, limit);
     if (queryRecords.length > 0) {
       return queryRecords;
     }
 
     // Fallback keeps compatibility while the new GSI is deploying.
-    return this.scanLeaderboardFallback(guildId, cutoff, limit);
-  }
-
-  private cutoffIso(scope: LeaderboardScope): string | null {
-    if (scope === "all") {
-      return null;
-    }
-
-    const now = Date.now();
-    const periodDays = scope === "week" ? 7 : 30;
-    return new Date(now - periodDays * 24 * 60 * 60 * 1000).toISOString();
+    return this.scanLeaderboardFallback(guildId, limit);
   }
 
   private async queryLeaderboardByIndex(
     guildId: string,
-    cutoffIso: string | null,
     limit: number
   ): Promise<KarmaRecord[]> {
     const results: KarmaRecord[] = [];
@@ -136,10 +122,7 @@ export class DynamoKarmaRepository implements KarmaRepository {
           lastActivityAt:
             typeof item.lastActivityAt === "string" ? item.lastActivityAt : undefined
         }))
-        .filter((item) => item.userId.length > 0)
-        .filter((item) =>
-          cutoffIso ? Boolean(item.lastActivityAt && item.lastActivityAt >= cutoffIso) : true
-        );
+        .filter((item) => item.userId.length > 0);
 
       results.push(...pageItems);
       exclusiveStartKey = queryResult.LastEvaluatedKey as Record<string, unknown> | undefined;
@@ -150,21 +133,15 @@ export class DynamoKarmaRepository implements KarmaRepository {
 
   private async scanLeaderboardFallback(
     guildId: string,
-    cutoffIso: string | null,
     limit: number
   ): Promise<KarmaRecord[]> {
-    const filterExpression = cutoffIso
-      ? "guildId = :guildId AND attribute_exists(lastActivityAt) AND lastActivityAt >= :cutoff"
-      : "guildId = :guildId";
     const scanResult = await this.client.send(
       new ScanCommand({
         TableName: this.tableName,
         ProjectionExpression:
           "discordUserId, guildId, karmaTotal, karmaMax, lastActivityAt",
-        FilterExpression: filterExpression,
-        ExpressionAttributeValues: cutoffIso
-          ? { ":guildId": guildId, ":cutoff": cutoffIso }
-          : { ":guildId": guildId }
+        FilterExpression: "guildId = :guildId",
+        ExpressionAttributeValues: { ":guildId": guildId }
       })
     );
 

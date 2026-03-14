@@ -1,5 +1,3 @@
-import type { LeaderboardScope } from "../platforms/types";
-
 export interface KarmaRecord {
   userId: string;
   karmaTotal: number;
@@ -9,9 +7,5 @@ export interface KarmaRecord {
 
 export interface KarmaRepository {
   applyDelta(guildId: string, userId: string, delta: number): Promise<KarmaRecord>;
-  getLeaderboard(
-    guildId: string,
-    scope: LeaderboardScope,
-    limit: number
-  ): Promise<KarmaRecord[]>;
+  getLeaderboard(guildId: string, limit: number): Promise<KarmaRecord[]>;
 }

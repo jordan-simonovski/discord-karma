@@ -79,7 +79,7 @@ Global commands can take a few minutes to propagate.
 
 Options:
 
-- `scope`: leaderboard window (`week`, `month`, `all`)
+- none (always returns all-time top 5)
 
 ```bash
 curl -X POST "https://discord.com/api/v10/applications/YOUR_APPLICATION_ID/commands" \
@@ -87,20 +87,7 @@ curl -X POST "https://discord.com/api/v10/applications/YOUR_APPLICATION_ID/comma
   -H "Content-Type: application/json" \
   -d '{
     "name": "leaderboard",
-    "description": "Show top 5 karma users",
-    "options": [
-      {
-        "type": 3,
-        "name": "scope",
-        "description": "Choose leaderboard period",
-        "required": true,
-        "choices": [
-          { "name": "week", "value": "week" },
-          { "name": "month", "value": "month" },
-          { "name": "all time", "value": "all" }
-        ]
-      }
-    ]
+    "description": "Show top 5 karma users"
   }'
 ```
 
@@ -122,9 +109,7 @@ Use:
 - `/karma user:@someone action:+++++++` -> buzzkill rejection
 - `/karma user:@yourself action:++` -> snark self-award rejection
 - `/karma user:@yourself action:--` -> snark self-remove rejection
-- `/leaderboard scope:week` -> top 5 users by current karma, active in last 7 days
-- `/leaderboard scope:month` -> top 5 users by current karma, active in last 30 days
-- `/leaderboard scope:all time` -> top 5 users by current karma
+- `/leaderboard` -> top 5 users by all-time current karma in this server
 
 ## Troubleshooting
 

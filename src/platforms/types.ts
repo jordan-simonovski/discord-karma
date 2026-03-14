@@ -1,5 +1,3 @@
-export type LeaderboardScope = "week" | "month" | "all";
-
 export interface KarmaActionEvent {
   kind: "karma";
   guildId: string;
@@ -18,7 +16,6 @@ export interface LeaderboardEvent {
   actorUserId: string;
   actorMention: string;
   channelId: string;
-  scope: LeaderboardScope;
 }
 
 export type BotCommandEvent = KarmaActionEvent | LeaderboardEvent;

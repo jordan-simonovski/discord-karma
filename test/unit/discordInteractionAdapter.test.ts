@@ -62,7 +62,7 @@ describe("DiscordInteractionAdapter", () => {
     expect(parsed).toBeNull();
   });
 
-  it("parses /leaderboard command with scope option", () => {
+  it("parses /leaderboard command", () => {
     const adapter = new DiscordInteractionAdapter();
     const parsed = adapter.parse({
       type: 2,
@@ -71,7 +71,7 @@ describe("DiscordInteractionAdapter", () => {
       member: { user: { id: "111" } },
       data: {
         name: "leaderboard",
-        options: [{ name: "scope", type: 3, value: "month" }]
+        options: []
       }
     });
 
@@ -80,22 +80,27 @@ describe("DiscordInteractionAdapter", () => {
       actorUserId: "111",
       actorMention: "<@111>",
       guildId: "g1",
-      channelId: "c1",
-      scope: "month"
+      channelId: "c1"
     });
   });
 
-  it("returns null when /leaderboard scope option is missing", () => {
+  it("parses /leaderboard when options are omitted", () => {
     const adapter = new DiscordInteractionAdapter();
     const parsed = adapter.parse({
       type: 2,
       guild_id: "g1",
       channel_id: "c1",
       member: { user: { id: "111" } },
-      data: { name: "leaderboard", options: [] }
+      data: { name: "leaderboard" }
     });
 
-    expect(parsed).toBeNull();
+    expect(parsed).toEqual({
+      kind: "leaderboard",
+      actorUserId: "111",
+      actorMention: "<@111>",
+      guildId: "g1",
+      channelId: "c1"
+    });
   });
 
   it("returns null when guild id is missing", () => {

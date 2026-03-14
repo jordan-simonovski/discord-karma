@@ -183,13 +183,12 @@ describe("KarmaService", () => {
       actorUserId: "viewer",
       actorMention: "<@viewer>",
       guildId: "g1",
-      channelId: "c1",
-      scope: "week"
+      channelId: "c1"
     });
 
-    expect(repo.getLeaderboard).toHaveBeenCalledWith("g1", "week", 25);
+    expect(repo.getLeaderboard).toHaveBeenCalledWith("g1", 25);
     expect(result.shouldPersist).toBe(false);
-    expect(result.message).toContain("Weekly karma leaderboard");
+    expect(result.message).toContain("All-time karma leaderboard");
     expect(result.message).toContain("1. <@u1> — 32");
     expect(result.message).toContain("5. <@u5> — 15");
   });
@@ -216,8 +215,7 @@ describe("KarmaService", () => {
       actorUserId: "viewer",
       actorMention: "<@viewer>",
       guildId: "g1",
-      channelId: "c1",
-      scope: "week"
+      channelId: "c1"
     });
 
     expect(checker.isUserInGuild).toHaveBeenCalledWith("g1", "u1");
@@ -245,8 +243,7 @@ describe("KarmaService", () => {
       actorUserId: "viewer",
       actorMention: "<@viewer>",
       guildId: "g1",
-      channelId: "c1",
-      scope: "week"
+      channelId: "c1"
     });
 
     expect(result.message).toContain("1. <@u1> — 32");

@@ -2,7 +2,6 @@ import type {
   BotCommandEvent,
   KarmaActionEvent,
   LeaderboardEvent,
-  LeaderboardScope,
   PlatformRequestParser
 } from "../types";
 
@@ -42,13 +41,6 @@ function optionValue(options: DiscordOption[] | undefined, name: string): string
   return typeof option?.value === "string" ? option.value : null;
 }
 
-function leaderboardScope(value: string | null): LeaderboardScope | null {
-  if (value === "week" || value === "month" || value === "all") {
-    return value;
-  }
-  return null;
-}
-
 export class DiscordInteractionAdapter
   implements PlatformRequestParser<DiscordInteractionPayload>
 {
@@ -70,7 +62,7 @@ export class DiscordInteractionAdapter
     }
 
     if (commandName === "leaderboard") {
-      return this.parseLeaderboardCommand(payload, guildId, actorUserId, channelId);
+      return this.parseLeaderboardCommand(guildId, actorUserId, channelId);
     }
 
     return null;
@@ -104,23 +96,16 @@ export class DiscordInteractionAdapter
   }
 
   private parseLeaderboardCommand(
-    payload: DiscordInteractionPayload,
     guildId: string,
     actorUserId: string,
     channelId: string
   ): LeaderboardEvent | null {
-    const scope = leaderboardScope(optionValue(payload.data?.options, "scope"));
-    if (!scope) {
-      return null;
-    }
-
     return {
       kind: "leaderboard",
       guildId,
       actorUserId,
       actorMention: `<@${actorUserId}>`,
-      channelId,
-      scope
+      channelId
     };
   }
 }

@@ -71,28 +71,19 @@ export class KarmaService {
   public async handleLeaderboard(
     event: LeaderboardEvent
   ): Promise<KarmaActionResult> {
-    const entries = await this.repository.getLeaderboard(
-      event.guildId,
-      event.scope,
-      LEADERBOARD_SCAN_LIMIT
-    );
+    const entries = await this.repository.getLeaderboard(event.guildId, LEADERBOARD_SCAN_LIMIT);
     console.info("leaderboard:repo_entries", {
       guildId: event.guildId,
-      scope: event.scope,
       count: entries.length
     });
     const filteredEntries = await this.filterGuildMembers(event.guildId, entries);
     console.info("leaderboard:filtered_entries", {
       guildId: event.guildId,
-      scope: event.scope,
       count: filteredEntries.length
     });
     return {
       shouldPersist: false,
-      message: formatLeaderboardMessage(
-        event.scope,
-        filteredEntries.slice(0, LEADERBOARD_RESULT_LIMIT)
-      )
+      message: formatLeaderboardMessage(filteredEntries.slice(0, LEADERBOARD_RESULT_LIMIT))
     };
   }
 
