@@ -10,7 +10,7 @@ export function formatKarmaAppliedMessage(
   const cappedMessage = capped
     ? " **Buzzkill mode enabled:** capped to 5 karma."
     : "";
-  return `${targetMention} ${verb} ${delta} karma. Total: ${record.karmaTotal}. Max: ${record.karmaMax}.${cappedMessage}`;
+  return `${cappedMessage}\n${targetMention} ${verb} ${delta} karma. Total: ${record.karmaTotal}. Max: ${record.karmaMax}.`;
 }
 
 export function formatBuzzkillMessage(targetMention: string): string {
