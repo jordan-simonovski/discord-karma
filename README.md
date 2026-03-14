@@ -64,6 +64,7 @@ Required GitHub repository settings:
   - `AWS_DEPLOY_ROLE_ARN`
   - `DISCORD_PUBLIC_KEY`
   - `DISCORD_BOT_TOKEN`
+  - `DISCORD_APPLICATION_ID`
 
 Create the OIDC role stack (once), replacing `owner/repo`:
 

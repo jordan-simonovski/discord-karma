@@ -47,3 +47,47 @@ jobs:
             --parameters DiscordPublicKey=${{ secrets.DISCORD_PUBLIC_KEY }} \
             --parameters DiscordBotToken=${{ secrets.DISCORD_BOT_TOKEN }} \
             --require-approval never
+
+      - name: Register Discord slash commands
+        run: |
+          curl --fail --silent --show-error \
+            -X PUT "https://discord.com/api/v10/applications/${{ secrets.DISCORD_APPLICATION_ID }}/commands" \
+            -H "Authorization: Bot ${{ secrets.DISCORD_BOT_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '[
+              {
+                "name": "karma",
+                "description": "Give or remove karma",
+                "options": [
+                  {
+                    "type": 6,
+                    "name": "user",
+                    "description": "Target user",
+                    "required": true
+                  },
+                  {
+                    "type": 3,
+                    "name": "action",
+                    "description": "Use ++..++++++ or --..------",
+                    "required": true
+                  }
+                ]
+              },
+              {
+                "name": "leaderboard",
+                "description": "Show top 5 karma users",
+                "options": [
+                  {
+                    "type": 3,
+                    "name": "scope",
+                    "description": "Choose leaderboard period",
+                    "required": true,
+                    "choices": [
+                      { "name": "week", "value": "week" },
+                      { "name": "month", "value": "month" },
+                      { "name": "all time", "value": "all" }
+                    ]
+                  }
+                ]
+              }
+            ]'
