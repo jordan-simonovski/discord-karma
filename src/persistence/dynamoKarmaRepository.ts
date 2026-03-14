@@ -9,6 +9,10 @@ import {
 import type { KarmaRecord, KarmaRepository } from "./karmaRepository";
 import type { LeaderboardScope } from "../platforms/types";
 
+function scopedUserId(guildId: string, userId: string): string {
+  return `${guildId}#${userId}`;
+}
+
 export class DynamoKarmaRepository implements KarmaRepository {
   public constructor(
     private readonly tableName: string,
@@ -17,15 +21,22 @@ export class DynamoKarmaRepository implements KarmaRepository {
     )
   ) {}
 
-  public async applyDelta(userId: string, delta: number): Promise<KarmaRecord> {
+  public async applyDelta(
+    guildId: string,
+    userId: string,
+    delta: number
+  ): Promise<KarmaRecord> {
     const nowIso = new Date().toISOString();
+    const scopedId = scopedUserId(guildId, userId);
     const totalResult = await this.client.send(
       new UpdateCommand({
         TableName: this.tableName,
-        Key: { userId },
+        Key: { userId: scopedId },
         UpdateExpression:
-          "SET karmaTotal = if_not_exists(karmaTotal, :zero) + :delta, lastActivityAt = :now",
+          "SET guildId = if_not_exists(guildId, :guildId), discordUserId = if_not_exists(discordUserId, :discordUserId), karmaTotal = if_not_exists(karmaTotal, :zero) + :delta, lastActivityAt = :now",
         ExpressionAttributeValues: {
+          ":guildId": guildId,
+          ":discordUserId": userId,
           ":zero": 0,
           ":delta": delta,
           ":now": nowIso
@@ -39,7 +50,7 @@ export class DynamoKarmaRepository implements KarmaRepository {
     await this.client.send(
       new UpdateCommand({
         TableName: this.tableName,
-        Key: { userId },
+        Key: { userId: scopedId },
         UpdateExpression: "SET karmaMax = :newMax",
         ConditionExpression:
           "attribute_not_exists(karmaMax) OR karmaMax < :newMax",
@@ -68,24 +79,34 @@ export class DynamoKarmaRepository implements KarmaRepository {
   }
 
   public async getLeaderboard(
+    guildId: string,
     scope: LeaderboardScope,
     limit: number
   ): Promise<KarmaRecord[]> {
     const cutoff = this.cutoffIso(scope);
+    const filterExpression = cutoff
+      ? "guildId = :guildId AND attribute_exists(lastActivityAt) AND lastActivityAt >= :cutoff"
+      : "guildId = :guildId";
     const scanResult = await this.client.send(
       new ScanCommand({
         TableName: this.tableName,
-        ProjectionExpression: "userId, karmaTotal, karmaMax, lastActivityAt",
-        FilterExpression: cutoff
-          ? "attribute_exists(lastActivityAt) AND lastActivityAt >= :cutoff"
-          : undefined,
-        ExpressionAttributeValues: cutoff ? { ":cutoff": cutoff } : undefined
+        ProjectionExpression:
+          "userId, discordUserId, guildId, karmaTotal, karmaMax, lastActivityAt",
+        FilterExpression: filterExpression,
+        ExpressionAttributeValues: cutoff
+          ? { ":guildId": guildId, ":cutoff": cutoff }
+          : { ":guildId": guildId }
       })
     );
 
     const records = (scanResult.Items ?? [])
       .map((item) => ({
-        userId: typeof item.userId === "string" ? item.userId : "",
+        userId:
+          typeof item.discordUserId === "string"
+            ? item.discordUserId
+            : typeof item.userId === "string" && item.userId.includes("#")
+              ? item.userId.slice(item.userId.indexOf("#") + 1)
+              : "",
         karmaTotal: Number(item.karmaTotal ?? 0),
         karmaMax: Number(item.karmaMax ?? 0),
         lastActivityAt:

@@ -6,6 +6,7 @@ describe("DiscordInteractionAdapter", () => {
     const adapter = new DiscordInteractionAdapter();
     const parsed = adapter.parse({
       type: 2,
+      guild_id: "g1",
       channel_id: "c1",
       member: { user: { id: "111" } },
       data: {
@@ -13,7 +14,12 @@ describe("DiscordInteractionAdapter", () => {
         options: [
           { name: "user", type: 6, value: "222" },
           { name: "action", type: 3, value: "++++" }
-        ]
+        ],
+        resolved: {
+          users: {
+            "222": { bot: false }
+          }
+        }
       }
     });
 
@@ -24,6 +30,8 @@ describe("DiscordInteractionAdapter", () => {
       targetUserId: "222",
       targetMention: "<@222>",
       symbolRun: "++++",
+      targetIsBot: false,
+      guildId: "g1",
       channelId: "c1"
     });
   });
@@ -32,6 +40,7 @@ describe("DiscordInteractionAdapter", () => {
     const adapter = new DiscordInteractionAdapter();
     const parsed = adapter.parse({
       type: 2,
+      guild_id: "g1",
       channel_id: "c1",
       member: { user: { id: "111" } },
       data: { name: "ping", options: [] }
@@ -44,6 +53,7 @@ describe("DiscordInteractionAdapter", () => {
     const adapter = new DiscordInteractionAdapter();
     const parsed = adapter.parse({
       type: 2,
+      guild_id: "g1",
       channel_id: "c1",
       member: { user: { id: "111" } },
       data: { name: "karma", options: [{ name: "user", type: 6, value: "222" }] }
@@ -56,6 +66,7 @@ describe("DiscordInteractionAdapter", () => {
     const adapter = new DiscordInteractionAdapter();
     const parsed = adapter.parse({
       type: 2,
+      guild_id: "g1",
       channel_id: "c1",
       member: { user: { id: "111" } },
       data: {
@@ -68,6 +79,7 @@ describe("DiscordInteractionAdapter", () => {
       kind: "leaderboard",
       actorUserId: "111",
       actorMention: "<@111>",
+      guildId: "g1",
       channelId: "c1",
       scope: "month"
     });
@@ -77,11 +89,64 @@ describe("DiscordInteractionAdapter", () => {
     const adapter = new DiscordInteractionAdapter();
     const parsed = adapter.parse({
       type: 2,
+      guild_id: "g1",
       channel_id: "c1",
       member: { user: { id: "111" } },
       data: { name: "leaderboard", options: [] }
     });
 
     expect(parsed).toBeNull();
+  });
+
+  it("returns null when guild id is missing", () => {
+    const adapter = new DiscordInteractionAdapter();
+    const parsed = adapter.parse({
+      type: 2,
+      channel_id: "c1",
+      member: { user: { id: "111" } },
+      data: {
+        name: "karma",
+        options: [
+          { name: "user", type: 6, value: "222" },
+          { name: "action", type: 3, value: "++++" }
+        ]
+      }
+    });
+
+    expect(parsed).toBeNull();
+  });
+
+  it("marks karma target as bot when resolved user is a bot", () => {
+    const adapter = new DiscordInteractionAdapter();
+    const parsed = adapter.parse({
+      type: 2,
+      guild_id: "g1",
+      channel_id: "c1",
+      member: { user: { id: "111" } },
+      data: {
+        name: "karma",
+        options: [
+          { name: "user", type: 6, value: "222" },
+          { name: "action", type: 3, value: "++++" }
+        ],
+        resolved: {
+          users: {
+            "222": { bot: true }
+          }
+        }
+      }
+    });
+
+    expect(parsed).toEqual({
+      kind: "karma",
+      actorUserId: "111",
+      actorMention: "<@111>",
+      targetUserId: "222",
+      targetMention: "<@222>",
+      symbolRun: "++++",
+      targetIsBot: true,
+      guildId: "g1",
+      channelId: "c1"
+    });
   });
 });

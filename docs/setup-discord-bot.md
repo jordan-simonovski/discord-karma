@@ -11,16 +11,17 @@ In [Discord Developer Portal](https://discord.com/developers/applications):
    - `Application ID`
    - `Public Key`
 3. In **Bot** tab, click **Add Bot**.
-4. Copy the **Bot Token** (used only for command registration).
+4. Copy the **Bot Token** (used for command registration and leaderboard membership checks).
 
-## 2) Deploy Stack with Discord Public Key
+## 2) Deploy Stack with Discord Public Key and Bot Token
 
-Deploy the application stack and pass `Public Key` into the CDK parameter:
+Deploy the application stack and pass `Public Key` + `Bot Token` into CDK parameters:
 
 ```bash
 npm run build
 npx cdk deploy DiscordKarmaStack \
   --parameters DiscordPublicKey=YOUR_DISCORD_PUBLIC_KEY \
+  --parameters DiscordBotToken=YOUR_BOT_TOKEN \
   --require-approval never
 ```
 

@@ -43,7 +43,7 @@ npm run cdk:bootstrap
 3. Deploy application stack:
 
 ```bash
-npm run cdk:deploy -- DiscordKarmaStack --parameters DiscordPublicKey=YOUR_DISCORD_PUBLIC_KEY
+npm run cdk:deploy -- DiscordKarmaStack --parameters DiscordPublicKey=YOUR_DISCORD_PUBLIC_KEY --parameters DiscordBotToken=YOUR_BOT_TOKEN
 ```
 
 ## Setup Guides
@@ -63,6 +63,7 @@ Required GitHub repository settings:
 - Secret:
   - `AWS_DEPLOY_ROLE_ARN`
   - `DISCORD_PUBLIC_KEY`
+  - `DISCORD_BOT_TOKEN`
 
 Create the OIDC role stack (once), replacing `owner/repo`:
 

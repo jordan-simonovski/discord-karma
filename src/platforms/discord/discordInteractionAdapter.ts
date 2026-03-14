@@ -15,6 +15,9 @@ interface DiscordOption {
 interface DiscordApplicationCommandData {
   name?: string;
   options?: DiscordOption[];
+  resolved?: {
+    users?: Record<string, { bot?: boolean }>;
+  };
 }
 
 interface DiscordInteractionMember {
@@ -25,6 +28,7 @@ interface DiscordInteractionMember {
 
 export interface DiscordInteractionPayload {
   type?: number;
+  guild_id?: string;
   channel_id?: string;
   member?: DiscordInteractionMember;
   user?: {
@@ -55,17 +59,18 @@ export class DiscordInteractionAdapter
     }
 
     const actorUserId = payload.member?.user?.id ?? payload.user?.id;
+    const guildId = payload.guild_id;
     const channelId = payload.channel_id;
-    if (!actorUserId || !channelId) {
+    if (!actorUserId || !guildId || !channelId) {
       return null;
     }
 
     if (commandName === "karma") {
-      return this.parseKarmaCommand(payload, actorUserId, channelId);
+      return this.parseKarmaCommand(payload, guildId, actorUserId, channelId);
     }
 
     if (commandName === "leaderboard") {
-      return this.parseLeaderboardCommand(payload, actorUserId, channelId);
+      return this.parseLeaderboardCommand(payload, guildId, actorUserId, channelId);
     }
 
     return null;
@@ -73,6 +78,7 @@ export class DiscordInteractionAdapter
 
   private parseKarmaCommand(
     payload: DiscordInteractionPayload,
+    guildId: string,
     actorUserId: string,
     channelId: string
   ): KarmaActionEvent | null {
@@ -81,13 +87,16 @@ export class DiscordInteractionAdapter
     if (!targetUserId || !symbolRun) {
       return null;
     }
+    const targetIsBot = payload.data?.resolved?.users?.[targetUserId]?.bot === true;
 
     return {
       kind: "karma",
+      guildId,
       actorUserId,
       actorMention: `<@${actorUserId}>`,
       targetUserId,
       targetMention: `<@${targetUserId}>`,
+      targetIsBot,
       symbolRun,
       channelId
     };
@@ -95,6 +104,7 @@ export class DiscordInteractionAdapter
 
   private parseLeaderboardCommand(
     payload: DiscordInteractionPayload,
+    guildId: string,
     actorUserId: string,
     channelId: string
   ): LeaderboardEvent | null {
@@ -105,6 +115,7 @@ export class DiscordInteractionAdapter
 
     return {
       kind: "leaderboard",
+      guildId,
       actorUserId,
       actorMention: `<@${actorUserId}>`,
       channelId,

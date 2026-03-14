@@ -34,6 +34,7 @@ In GitHub: **Settings -> Secrets and variables -> Actions**
 - Add Secret:
   - `AWS_DEPLOY_ROLE_ARN` = output `GitHubActionsDeployRoleArn`
   - `DISCORD_PUBLIC_KEY` = Discord application public key from Developer Portal
+  - `DISCORD_BOT_TOKEN` = Discord bot token from Developer Portal
 
 ## 3) Verify Workflow Permissions
 
@@ -69,7 +70,7 @@ The workflow runs:
 2. `npm test`
 3. `npm run build`
 4. `cdk deploy DiscordKarmaStack`
-   - with `DiscordPublicKey` stack parameter from secret
+   - with `DiscordPublicKey` and `DiscordBotToken` stack parameters from secrets
 
 ## Troubleshooting
 

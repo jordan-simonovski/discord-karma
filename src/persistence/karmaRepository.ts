@@ -8,6 +8,10 @@ export interface KarmaRecord {
 }
 
 export interface KarmaRepository {
-  applyDelta(userId: string, delta: number): Promise<KarmaRecord>;
-  getLeaderboard(scope: LeaderboardScope, limit: number): Promise<KarmaRecord[]>;
+  applyDelta(guildId: string, userId: string, delta: number): Promise<KarmaRecord>;
+  getLeaderboard(
+    guildId: string,
+    scope: LeaderboardScope,
+    limit: number
+  ): Promise<KarmaRecord[]>;
 }

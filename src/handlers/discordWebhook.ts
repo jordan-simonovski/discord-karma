@@ -6,6 +6,7 @@ import {
   DiscordInteractionAdapter,
   type DiscordInteractionPayload
 } from "../platforms/discord/discordInteractionAdapter";
+import { DiscordGuildMembershipChecker } from "../platforms/discord/discordGuildMembershipChecker";
 import { verifyDiscordSignature } from "../platforms/discord/verifyDiscordSignature";
 
 const MAX_SIGNATURE_AGE_SECONDS = 300;
@@ -71,6 +72,7 @@ export async function handler(
 ): Promise<APIGatewayProxyResultV2> {
   const tableName = process.env.KARMA_TABLE_NAME;
   const discordPublicKey = process.env.DISCORD_PUBLIC_KEY;
+  const discordBotToken = process.env.DISCORD_BOT_TOKEN;
   const signature = headerValue(event.headers, "x-signature-ed25519");
   const timestamp = headerValue(event.headers, "x-signature-timestamp");
   const rawBody = rawBodyFromEvent(event);
@@ -129,7 +131,8 @@ export async function handler(
 
   const service = new KarmaService(
     new DynamoKarmaRepository(tableName),
-    randomSnarkPicker
+    randomSnarkPicker,
+    new DiscordGuildMembershipChecker(discordBotToken)
   );
   const result =
     action.kind === "leaderboard"

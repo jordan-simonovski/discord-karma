@@ -22,6 +22,10 @@ export class DiscordKarmaStack extends Stack {
       type: "String",
       description: "Discord application public key used to verify interactions"
     });
+    const discordBotToken = new CfnParameter(this, "DiscordBotToken", {
+      type: "String",
+      description: "Discord bot token used for guild membership checks"
+    });
 
     const table = new Table(this, "KarmaTable", {
       partitionKey: { name: "userId", type: AttributeType.STRING },
@@ -37,7 +41,8 @@ export class DiscordKarmaStack extends Stack {
       timeout: Duration.seconds(10),
       environment: {
         KARMA_TABLE_NAME: table.tableName,
-        DISCORD_PUBLIC_KEY: discordPublicKey.valueAsString
+        DISCORD_PUBLIC_KEY: discordPublicKey.valueAsString,
+        DISCORD_BOT_TOKEN: discordBotToken.valueAsString
       }
     });
 

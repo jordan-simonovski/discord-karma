@@ -45,4 +45,5 @@ jobs:
         run: |
           npx cdk deploy DiscordKarmaStack \
             --parameters DiscordPublicKey=${{ secrets.DISCORD_PUBLIC_KEY }} \
+            --parameters DiscordBotToken=${{ secrets.DISCORD_BOT_TOKEN }} \
             --require-approval never
