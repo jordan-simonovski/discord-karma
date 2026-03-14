@@ -37,9 +37,13 @@ In Discord Developer Portal:
 
 Discord sends a `PING` request first. The endpoint must respond with `PONG` (implemented).
 
-## 4) Register `/karma` Command
+## 4) Register Commands
 
-Register a global slash command with two options:
+Register global slash commands for `/karma` and `/leaderboard`.
+
+### `/karma`
+
+Options:
 
 - `user`: target user
 - `action`: symbol run (`++`, `+++`, `--`, etc.)
@@ -70,6 +74,35 @@ curl -X POST "https://discord.com/api/v10/applications/YOUR_APPLICATION_ID/comma
 
 Global commands can take a few minutes to propagate.
 
+### `/leaderboard`
+
+Options:
+
+- `scope`: leaderboard window (`week`, `month`, `all`)
+
+```bash
+curl -X POST "https://discord.com/api/v10/applications/YOUR_APPLICATION_ID/commands" \
+  -H "Authorization: Bot YOUR_BOT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "leaderboard",
+    "description": "Show top 5 karma users",
+    "options": [
+      {
+        "type": 3,
+        "name": "scope",
+        "description": "Choose leaderboard period",
+        "required": true,
+        "choices": [
+          { "name": "week", "value": "week" },
+          { "name": "month", "value": "month" },
+          { "name": "all time", "value": "all" }
+        ]
+      }
+    ]
+  }'
+```
+
 ## 5) Invite Bot to Your Server
 
 In **OAuth2 -> URL Generator**:
@@ -88,14 +121,17 @@ Use:
 - `/karma user:@someone action:+++++++` -> buzzkill rejection
 - `/karma user:@yourself action:++` -> snark self-award rejection
 - `/karma user:@yourself action:--` -> snark self-remove rejection
+- `/leaderboard scope:week` -> top 5 users by current karma, active in last 7 days
+- `/leaderboard scope:month` -> top 5 users by current karma, active in last 30 days
+- `/leaderboard scope:all time` -> top 5 users by current karma
 
 ## Troubleshooting
 
 - `401 bad signature`:
   - `DiscordPublicKey` is wrong or stale.
   - Re-deploy stack with current public key.
-- `Unsupported command. Use /karma.`:
-  - Command name is not `karma`.
+- `Unsupported command. Use /karma or /leaderboard.`:
+  - Command name is not `karma` or `leaderboard`.
 - Slash command not visible:
   - Wait for global propagation or re-register command.
 - Endpoint validation fails in Discord portal:

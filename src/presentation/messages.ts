@@ -1,4 +1,5 @@
 import type { KarmaRecord } from "../persistence/karmaRepository";
+import type { LeaderboardScope } from "../platforms/types";
 
 export function formatKarmaAppliedMessage(
   targetMention: string,
@@ -15,4 +16,24 @@ export function formatKarmaAppliedMessage(
 
 export function formatBuzzkillMessage(targetMention: string): string {
   return `**Buzzkill mode enabled:** ${targetMention} can only receive between 1 and 5 karma.`;
+}
+
+const leaderboardTitles: Record<LeaderboardScope, string> = {
+  week: "Weekly karma leaderboard",
+  month: "Monthly karma leaderboard",
+  all: "All-time karma leaderboard"
+};
+
+export function formatLeaderboardMessage(
+  scope: LeaderboardScope,
+  entries: KarmaRecord[]
+): string {
+  if (entries.length === 0) {
+    return `${leaderboardTitles[scope]}\nNo karma activity yet.`;
+  }
+
+  const lines = entries.map(
+    (entry, index) => `${index + 1}. <@${entry.userId}> — ${entry.karmaTotal}`
+  );
+  return `${leaderboardTitles[scope]}\n${lines.join("\n")}`;
 }

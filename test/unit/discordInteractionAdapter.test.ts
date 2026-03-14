@@ -18,6 +18,7 @@ describe("DiscordInteractionAdapter", () => {
     });
 
     expect(parsed).toEqual({
+      kind: "karma",
       actorUserId: "111",
       actorMention: "<@111>",
       targetUserId: "222",
@@ -46,6 +47,39 @@ describe("DiscordInteractionAdapter", () => {
       channel_id: "c1",
       member: { user: { id: "111" } },
       data: { name: "karma", options: [{ name: "user", type: 6, value: "222" }] }
+    });
+
+    expect(parsed).toBeNull();
+  });
+
+  it("parses /leaderboard command with scope option", () => {
+    const adapter = new DiscordInteractionAdapter();
+    const parsed = adapter.parse({
+      type: 2,
+      channel_id: "c1",
+      member: { user: { id: "111" } },
+      data: {
+        name: "leaderboard",
+        options: [{ name: "scope", type: 3, value: "month" }]
+      }
+    });
+
+    expect(parsed).toEqual({
+      kind: "leaderboard",
+      actorUserId: "111",
+      actorMention: "<@111>",
+      channelId: "c1",
+      scope: "month"
+    });
+  });
+
+  it("returns null when /leaderboard scope option is missing", () => {
+    const adapter = new DiscordInteractionAdapter();
+    const parsed = adapter.parse({
+      type: 2,
+      channel_id: "c1",
+      member: { user: { id: "111" } },
+      data: { name: "leaderboard", options: [] }
     });
 
     expect(parsed).toBeNull();

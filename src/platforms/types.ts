@@ -1,4 +1,7 @@
+export type LeaderboardScope = "week" | "month" | "all";
+
 export interface KarmaActionEvent {
+  kind: "karma";
   actorUserId: string;
   actorMention: string;
   targetUserId: string;
@@ -6,6 +9,16 @@ export interface KarmaActionEvent {
   symbolRun: string;
   channelId: string;
 }
+
+export interface LeaderboardEvent {
+  kind: "leaderboard";
+  actorUserId: string;
+  actorMention: string;
+  channelId: string;
+  scope: LeaderboardScope;
+}
+
+export type BotCommandEvent = KarmaActionEvent | LeaderboardEvent;
 
 export interface KarmaActionResult {
   shouldPersist: boolean;
@@ -17,5 +30,5 @@ export interface PlatformResponse {
 }
 
 export interface PlatformRequestParser<TPayload> {
-  parse(payload: TPayload): KarmaActionEvent | null;
+  parse(payload: TPayload): BotCommandEvent | null;
 }

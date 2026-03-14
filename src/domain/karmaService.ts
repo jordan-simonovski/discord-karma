@@ -1,6 +1,13 @@
-import type { KarmaActionEvent, KarmaActionResult } from "../platforms/types";
+import type {
+  KarmaActionEvent,
+  KarmaActionResult,
+  LeaderboardEvent
+} from "../platforms/types";
 import type { KarmaRepository } from "../persistence/karmaRepository";
-import { formatKarmaAppliedMessage } from "../presentation/messages";
+import {
+  formatKarmaAppliedMessage,
+  formatLeaderboardMessage
+} from "../presentation/messages";
 import { evaluateKarmaAction, type RejectionReason } from "./karmaRules";
 import type { SnarkCategory, SnarkPicker } from "../presentation/snark";
 
@@ -30,6 +37,16 @@ export class KarmaService {
         record,
         outcome.capped
       )
+    };
+  }
+
+  public async handleLeaderboard(
+    event: LeaderboardEvent
+  ): Promise<KarmaActionResult> {
+    const entries = await this.repository.getLeaderboard(event.scope, 5);
+    return {
+      shouldPersist: false,
+      message: formatLeaderboardMessage(event.scope, entries)
     };
   }
 

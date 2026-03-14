@@ -102,7 +102,10 @@ export async function handler(
   if (!action) {
     return response(200, {
       type: 4,
-      data: { content: "Unsupported command. Use /karma.", flags: 64 }
+      data: {
+        content: "Unsupported command. Use /karma or /leaderboard.",
+        flags: 64
+      }
     });
   }
 
@@ -110,7 +113,10 @@ export async function handler(
     new DynamoKarmaRepository(tableName),
     randomSnarkPicker
   );
-  const result = await service.handleAction(action);
+  const result =
+    action.kind === "leaderboard"
+      ? await service.handleLeaderboard(action)
+      : await service.handleAction(action);
 
   return response(200, {
     type: 4,
