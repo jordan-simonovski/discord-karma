@@ -137,6 +137,34 @@ describe("KarmaService", () => {
     expect(result.message).toContain("Bots cannot receive karma");
   });
 
+  it("rejects karma when bot status is unknown in payload but confirmed by checker", async () => {
+    const repo: KarmaRepository = {
+      getLeaderboard: vi.fn(),
+      applyDelta: vi.fn()
+    };
+    const checker = {
+      isUserInGuild: vi.fn().mockResolvedValue(true),
+      isUserBot: vi.fn().mockResolvedValue(true)
+    };
+
+    const service = new KarmaService(repo, () => "snark", checker);
+    const result = await service.handleAction({
+      kind: "karma",
+      actorUserId: "giver",
+      actorMention: "<@giver>",
+      guildId: "g1",
+      targetUserId: "target",
+      targetMention: "<@target>",
+      targetIsBot: null,
+      symbolRun: "+++",
+      channelId: "c1"
+    });
+
+    expect(checker.isUserBot).toHaveBeenCalledWith("g1", "target");
+    expect(repo.applyDelta).not.toHaveBeenCalled();
+    expect(result.shouldPersist).toBe(false);
+  });
+
   it("returns top 5 leaderboard entries for the selected scope", async () => {
     const repo: KarmaRepository = {
       applyDelta: vi.fn(),
@@ -178,7 +206,8 @@ describe("KarmaService", () => {
       isUserInGuild: vi
         .fn()
         .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(false),
+      isUserBot: vi.fn().mockResolvedValue(false)
     };
 
     const service = new KarmaService(repo, () => "snark", checker);
@@ -206,7 +235,8 @@ describe("KarmaService", () => {
       ])
     };
     const checker = {
-      isUserInGuild: vi.fn().mockResolvedValue(false)
+      isUserInGuild: vi.fn().mockResolvedValue(false),
+      isUserBot: vi.fn().mockResolvedValue(false)
     };
 
     const service = new KarmaService(repo, () => "snark", checker);

@@ -14,6 +14,7 @@ import type { SnarkCategory, SnarkPicker } from "../presentation/snark";
 
 export interface GuildMembershipChecker {
   isUserInGuild(guildId: string, userId: string): Promise<boolean>;
+  isUserBot(guildId: string, userId: string): Promise<boolean | null>;
 }
 
 const LEADERBOARD_SCAN_LIMIT = 25;
@@ -25,12 +26,16 @@ export class KarmaService {
     private readonly repository: KarmaRepository,
     private readonly pickSnark: SnarkPicker,
     private readonly guildMembershipChecker: GuildMembershipChecker = {
-      isUserInGuild: async () => true
+      isUserInGuild: async () => true,
+      isUserBot: async () => null
     }
   ) {}
 
   public async handleAction(event: KarmaActionEvent): Promise<KarmaActionResult> {
-    if (event.targetIsBot) {
+    const targetIsBot =
+      event.targetIsBot ??
+      (await this.guildMembershipChecker.isUserBot(event.guildId, event.targetUserId));
+    if (targetIsBot) {
       return {
         shouldPersist: false,
         message: "Bots cannot receive karma."

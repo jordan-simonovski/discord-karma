@@ -7,7 +7,7 @@ export interface KarmaActionEvent {
   actorMention: string;
   targetUserId: string;
   targetMention: string;
-  targetIsBot: boolean;
+  targetIsBot: boolean | null;
   symbolRun: string;
   channelId: string;
 }

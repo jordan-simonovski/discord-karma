@@ -46,4 +46,43 @@ export class DiscordGuildMembershipChecker implements GuildMembershipChecker {
     // Retries exhausted due to network/5xx/429: treat as unknown and keep entry.
     return true;
   }
+
+  public async isUserBot(guildId: string, userId: string): Promise<boolean | null> {
+    if (!this.botToken) {
+      return null;
+    }
+
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+      const response = await fetch(
+        `https://discord.com/api/v10/guilds/${encodeURIComponent(guildId)}/members/${encodeURIComponent(userId)}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bot ${this.botToken}`
+          },
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+        }
+      ).catch(() => null);
+
+      if (response?.status === 404) {
+        return false;
+      }
+      if (response?.status === 200) {
+        const payload = (await response.json().catch(() => null)) as
+          | { user?: { bot?: boolean } }
+          | null;
+        return typeof payload?.user?.bot === "boolean" ? payload.user.bot : null;
+      }
+
+      if (
+        response &&
+        response.status !== 429 &&
+        (response.status < 500 || response.status > 599)
+      ) {
+        return null;
+      }
+    }
+
+    return null;
+  }
 }

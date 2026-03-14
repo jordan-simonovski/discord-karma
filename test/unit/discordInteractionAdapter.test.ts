@@ -116,7 +116,7 @@ describe("DiscordInteractionAdapter", () => {
     expect(parsed).toBeNull();
   });
 
-  it("returns null for /karma when resolved user metadata is missing", () => {
+  it("parses /karma when resolved user metadata is missing", () => {
     const adapter = new DiscordInteractionAdapter();
     const parsed = adapter.parse({
       type: 2,
@@ -132,7 +132,17 @@ describe("DiscordInteractionAdapter", () => {
       }
     });
 
-    expect(parsed).toBeNull();
+    expect(parsed).toEqual({
+      kind: "karma",
+      actorUserId: "111",
+      actorMention: "<@111>",
+      targetUserId: "222",
+      targetMention: "<@222>",
+      symbolRun: "++++",
+      targetIsBot: null,
+      guildId: "g1",
+      channelId: "c1"
+    });
   });
 
   it("marks karma target as bot when resolved user is a bot", () => {
