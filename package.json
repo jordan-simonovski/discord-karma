@@ -1,0 +1,42 @@
+{
+  "name": "discord-karma",
+  "version": "0.1.0",
+  "description": "Serverless Discord karma bot with DynamoDB persistence.",
+  "main": "dist/src/handlers/discordWebhook.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit -p tsconfig.json",
+    "cdk:synth": "cdk synth",
+    "cdk:deploy": "cdk deploy --require-approval never",
+    "cdk:bootstrap": "cdk bootstrap"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jordan-simonovski/discord-karma.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jordan-simonovski/discord-karma/issues"
+  },
+  "homepage": "https://github.com/jordan-simonovski/discord-karma#readme",
+  "private": true,
+  "type": "commonjs",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1009.0",
+    "@aws-sdk/lib-dynamodb": "^3.1009.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.161",
+    "@types/node": "^25.5.0",
+    "aws-cdk": "^2.1111.0",
+    "aws-cdk-lib": "^2.243.0",
+    "constructs": "^10.5.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
+  }
+}
