@@ -8,6 +8,8 @@ import {
 } from "../platforms/discord/discordInteractionAdapter";
 import { verifyDiscordSignature } from "../platforms/discord/verifyDiscordSignature";
 
+const MAX_SIGNATURE_AGE_SECONDS = 300;
+
 function readPayload(rawBody: string): DiscordInteractionPayload | null {
   try {
     return JSON.parse(rawBody) as DiscordInteractionPayload;
@@ -51,6 +53,19 @@ function rawBodyFromEvent(event: APIGatewayProxyEventV2): string | null {
   return event.body;
 }
 
+function isFreshTimestamp(timestamp: string, nowSeconds: number = Date.now() / 1000): boolean {
+  if (!/^\d{1,20}$/.test(timestamp)) {
+    return false;
+  }
+
+  const parsed = Number(timestamp);
+  if (!Number.isFinite(parsed)) {
+    return false;
+  }
+
+  return Math.abs(nowSeconds - parsed) <= MAX_SIGNATURE_AGE_SECONDS;
+}
+
 export async function handler(
   event: APIGatewayProxyEventV2
 ): Promise<APIGatewayProxyResultV2> {
@@ -76,6 +91,9 @@ export async function handler(
 
   if (!signature || !timestamp || !rawBody) {
     return response(401, { error: "invalid request signature" });
+  }
+  if (!isFreshTimestamp(timestamp)) {
+    return response(401, { error: "stale request timestamp" });
   }
 
   const isValid = verifyDiscordSignature({
