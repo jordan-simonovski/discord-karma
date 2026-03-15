@@ -90,7 +90,7 @@ export class DiscordGuildMembershipChecker implements GuildMembershipChecker {
 
   public async getRoleMemberUserIds(guildId: string, roleId: string): Promise<string[]> {
     if (!this.botToken) {
-      return [];
+      throw new Error("discord-bot-token-missing");
     }
 
     const matches = new Set<string>();
@@ -113,7 +113,7 @@ export class DiscordGuildMembershipChecker implements GuildMembershipChecker {
       ).catch(() => null);
 
       if (!response || response.status !== 200) {
-        return [];
+        throw new Error(`discord-api-status-${response?.status ?? "network"}`);
       }
 
       const payload = (await response.json().catch(() => null)) as

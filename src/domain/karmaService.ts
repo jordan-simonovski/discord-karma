@@ -121,7 +121,27 @@ export class KarmaService {
   private async handleRoleAction(event: KarmaActionEvent): Promise<KarmaActionResult> {
     const roleId = event.targetRoleId as string;
     const roleMention = event.targetRoleMention as string;
-    const roleMemberIds = await this.guildMembershipChecker.getRoleMemberUserIds(event.guildId, roleId);
+    let roleMemberIds: string[];
+    try {
+      roleMemberIds = await this.guildMembershipChecker.getRoleMemberUserIds(
+        event.guildId,
+        roleId
+      );
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "unknown-role-member-lookup-error";
+      console.warn("role_membership_lookup_failed", {
+        guildId: event.guildId,
+        roleId,
+        error: errorMessage
+      });
+      return {
+        shouldPersist: false,
+        message:
+          `Could not resolve members for ${roleMention}. ` +
+          "Check DISCORD_BOT_TOKEN and enable Server Members Intent in Discord."
+      };
+    }
     if (roleMemberIds.length === 0) {
       return {
         shouldPersist: false,

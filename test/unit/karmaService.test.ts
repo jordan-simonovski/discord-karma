@@ -327,4 +327,35 @@ describe("KarmaService", () => {
     expect(result.message).toContain("No users found");
     expect(result.message).toContain("<@&r1>");
   });
+
+  it("returns actionable error when role member lookup fails", async () => {
+    const repo: KarmaRepository = {
+      getLeaderboard: vi.fn(),
+      applyDelta: vi.fn()
+    };
+    const checker = {
+      isUserInGuild: vi.fn().mockResolvedValue(true),
+      isUserBot: vi.fn().mockResolvedValue(false),
+      getRoleMemberUserIds: vi
+        .fn()
+        .mockRejectedValue(new Error("discord-api-status-403"))
+    };
+
+    const service = new KarmaService(repo, () => "snark", checker);
+    const result = await service.handleAction({
+      kind: "karma",
+      actorUserId: "giver",
+      actorMention: "<@giver>",
+      guildId: "g1",
+      targetRoleId: "r1",
+      targetRoleMention: "<@&r1>",
+      symbolRun: "+++",
+      channelId: "c1"
+    });
+
+    expect(result.shouldPersist).toBe(false);
+    expect(result.message).toContain("Could not resolve members");
+    expect(result.message).toContain("Server Members Intent");
+    expect(repo.applyDelta).not.toHaveBeenCalled();
+  });
 });

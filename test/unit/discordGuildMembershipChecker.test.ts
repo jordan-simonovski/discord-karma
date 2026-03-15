@@ -99,4 +99,26 @@ describe("DiscordGuildMembershipChecker", () => {
     );
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
+
+  it("throws when role lookup runs without bot token", async () => {
+    const checker = new DiscordGuildMembershipChecker(undefined);
+
+    await expect(checker.getRoleMemberUserIds("g1", "r1")).rejects.toThrow(
+      "discord-bot-token-missing"
+    );
+  });
+
+  it("throws when Discord rejects role member lookup", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        status: 403
+      } as Response)
+    );
+    const checker = new DiscordGuildMembershipChecker("token");
+
+    await expect(checker.getRoleMemberUserIds("g1", "r1")).rejects.toThrow(
+      "discord-api-status-403"
+    );
+  });
 });
