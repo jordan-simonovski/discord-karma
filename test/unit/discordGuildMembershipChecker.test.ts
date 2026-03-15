@@ -70,4 +70,33 @@ describe("DiscordGuildMembershipChecker", () => {
     expect(result).toBeNull();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
+
+  it("collects role members by paging guild members and filtering role ids", async () => {
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValueOnce({
+        status: 200,
+        json: async () => [
+          { user: { id: "100" }, roles: ["r1"] },
+          { user: { id: "101" }, roles: ["r2"] },
+          { user: { id: "102" }, roles: ["r1", "r3"] }
+        ]
+      } as Response)
+      .mockResolvedValueOnce({
+        status: 200,
+        json: async () => []
+      } as Response);
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const checker = new DiscordGuildMembershipChecker("token");
+    const result = await checker.getRoleMemberUserIds("g1", "r1");
+
+    expect(result).toEqual(["100", "102"]);
+    expect(fetchSpy).toHaveBeenNthCalledWith(
+      1,
+      "https://discord.com/api/v10/guilds/g1/members?limit=1000",
+      expect.any(Object)
+    );
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
 });

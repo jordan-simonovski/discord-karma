@@ -2,6 +2,8 @@ import type { GuildMembershipChecker } from "../../domain/karmaService";
 
 const REQUEST_TIMEOUT_MS = 2000;
 const MAX_ATTEMPTS = 2;
+const GUILD_MEMBER_PAGE_SIZE = 1000;
+const ROLE_MEMBER_SCAN_LIMIT = 10000;
 
 export class DiscordGuildMembershipChecker implements GuildMembershipChecker {
   public constructor(private readonly botToken: string | undefined) {}
@@ -91,30 +93,57 @@ export class DiscordGuildMembershipChecker implements GuildMembershipChecker {
       return [];
     }
 
-    const response = await fetch(
-      `https://discord.com/api/v10/guilds/${encodeURIComponent(guildId)}/roles/${encodeURIComponent(roleId)}/members`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bot ${this.botToken}`
-        },
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+    const matches = new Set<string>();
+    let after: string | null = null;
+    let scanned = 0;
+
+    while (scanned < ROLE_MEMBER_SCAN_LIMIT) {
+      const query = after
+        ? `?limit=${GUILD_MEMBER_PAGE_SIZE}&after=${encodeURIComponent(after)}`
+        : `?limit=${GUILD_MEMBER_PAGE_SIZE}`;
+      const response = await fetch(
+        `https://discord.com/api/v10/guilds/${encodeURIComponent(guildId)}/members${query}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bot ${this.botToken}`
+          },
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+        }
+      ).catch(() => null);
+
+      if (!response || response.status !== 200) {
+        return [];
       }
-    ).catch(() => null);
 
-    if (!response || response.status !== 200) {
-      return [];
+      const payload = (await response.json().catch(() => null)) as
+        | Array<{ user?: { id?: string }; roles?: string[] }>
+        | null;
+      if (!Array.isArray(payload) || payload.length === 0) {
+        break;
+      }
+
+      for (const member of payload) {
+        const userId = member.user?.id;
+        if (typeof userId !== "string" || userId.length === 0) {
+          continue;
+        }
+        if (Array.isArray(member.roles) && member.roles.includes(roleId)) {
+          matches.add(userId);
+        }
+      }
+
+      scanned += payload.length;
+      const lastUserId = payload[payload.length - 1]?.user?.id;
+      if (typeof lastUserId !== "string" || lastUserId.length === 0) {
+        break;
+      }
+      after = lastUserId;
+      if (payload.length < GUILD_MEMBER_PAGE_SIZE) {
+        break;
+      }
     }
 
-    const payload = (await response.json().catch(() => null)) as
-      | Array<{ user?: { id?: string } }>
-      | null;
-    if (!Array.isArray(payload)) {
-      return [];
-    }
-
-    return payload
-      .map((member) => member.user?.id)
-      .filter((userId): userId is string => typeof userId === "string" && userId.length > 0);
+    return Array.from(matches);
   }
 }
