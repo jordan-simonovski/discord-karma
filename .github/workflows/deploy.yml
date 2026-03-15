@@ -60,9 +60,9 @@ jobs:
                 "description": "Give or remove karma",
                 "options": [
                   {
-                    "type": 6,
-                    "name": "user",
-                    "description": "Target user",
+                    "type": 9,
+                    "name": "target",
+                    "description": "Target user or role",
                     "required": true
                   },
                   {
