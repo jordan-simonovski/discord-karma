@@ -89,11 +89,19 @@ export class DiscordGuildMembershipChecker implements GuildMembershipChecker {
   }
 
   public async getRoleMemberUserIds(guildId: string, roleId: string): Promise<string[]> {
+    const members = await this.getRoleMembers(guildId, roleId);
+    return members.map((member) => member.userId);
+  }
+
+  public async getRoleMembers(
+    guildId: string,
+    roleId: string
+  ): Promise<Array<{ userId: string; isBot: boolean | null }>> {
     if (!this.botToken) {
       throw new Error("discord-bot-token-missing");
     }
 
-    const matches = new Set<string>();
+    const matches = new Map<string, boolean | null>();
     let after: string | null = null;
     let scanned = 0;
 
@@ -117,7 +125,7 @@ export class DiscordGuildMembershipChecker implements GuildMembershipChecker {
       }
 
       const payload = (await response.json().catch(() => null)) as
-        | Array<{ user?: { id?: string }; roles?: string[] }>
+        | Array<{ user?: { id?: string; bot?: boolean }; roles?: string[] }>
         | null;
       if (!Array.isArray(payload) || payload.length === 0) {
         break;
@@ -129,7 +137,10 @@ export class DiscordGuildMembershipChecker implements GuildMembershipChecker {
           continue;
         }
         if (Array.isArray(member.roles) && member.roles.includes(roleId)) {
-          matches.add(userId);
+          matches.set(
+            userId,
+            typeof member.user?.bot === "boolean" ? member.user.bot : null
+          );
         }
       }
 
@@ -144,6 +155,6 @@ export class DiscordGuildMembershipChecker implements GuildMembershipChecker {
       }
     }
 
-    return Array.from(matches);
+    return Array.from(matches.entries()).map(([userId, isBot]) => ({ userId, isBot }));
   }
 }

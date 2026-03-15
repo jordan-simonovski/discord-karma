@@ -7,11 +7,13 @@ import {
   Code,
   Function as LambdaFunction
 } from "aws-cdk-lib/aws-lambda";
+import { SqsEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
 import {
   Cors,
   LambdaIntegration,
   RestApi
 } from "aws-cdk-lib/aws-apigateway";
+import { Queue } from "aws-cdk-lib/aws-sqs";
 import type { Construct } from "constructs";
 
 export class DiscordKarmaStack extends Stack {
@@ -37,6 +39,10 @@ export class DiscordKarmaStack extends Stack {
       sortKey: { name: "karmaTotal", type: AttributeType.NUMBER }
     });
 
+    const asyncRoleKarmaQueue = new Queue(this, "AsyncRoleKarmaQueue", {
+      visibilityTimeout: Duration.seconds(120)
+    });
+
     const handler = new LambdaFunction(this, "DiscordKarmaHandler", {
       runtime: Runtime.NODEJS_22_X,
       architecture: Architecture.ARM_64,
@@ -47,11 +53,28 @@ export class DiscordKarmaStack extends Stack {
       environment: {
         KARMA_TABLE_NAME: table.tableName,
         DISCORD_PUBLIC_KEY: discordPublicKey.valueAsString,
+        DISCORD_BOT_TOKEN: discordBotToken.valueAsString,
+        ASYNC_KARMA_QUEUE_URL: asyncRoleKarmaQueue.queueUrl
+      }
+    });
+
+    const asyncRoleWorker = new LambdaFunction(this, "DiscordAsyncRoleKarmaWorker", {
+      runtime: Runtime.NODEJS_22_X,
+      architecture: Architecture.ARM_64,
+      handler: "src/handlers/discordAsyncRoleKarmaWorker.handler",
+      code: Code.fromAsset(path.join(process.cwd(), "dist")),
+      memorySize: 512,
+      timeout: Duration.seconds(60),
+      environment: {
+        KARMA_TABLE_NAME: table.tableName,
         DISCORD_BOT_TOKEN: discordBotToken.valueAsString
       }
     });
 
     table.grantReadWriteData(handler);
+    table.grantReadWriteData(asyncRoleWorker);
+    asyncRoleKarmaQueue.grantSendMessages(handler);
+    asyncRoleWorker.addEventSource(new SqsEventSource(asyncRoleKarmaQueue, { batchSize: 1 }));
 
     const api = new RestApi(this, "DiscordKarmaApi", {
       restApiName: "discord-karma-api",

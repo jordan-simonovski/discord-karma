@@ -16,6 +16,10 @@ export interface GuildMembershipChecker {
   isUserInGuild(guildId: string, userId: string): Promise<boolean>;
   isUserBot(guildId: string, userId: string): Promise<boolean | null>;
   getRoleMemberUserIds(guildId: string, roleId: string): Promise<string[]>;
+  getRoleMembers?(
+    guildId: string,
+    roleId: string
+  ): Promise<Array<{ userId: string; isBot: boolean | null }>>;
 }
 
 const LEADERBOARD_SCAN_LIMIT = 25;
@@ -121,12 +125,13 @@ export class KarmaService {
   private async handleRoleAction(event: KarmaActionEvent): Promise<KarmaActionResult> {
     const roleId = event.targetRoleId as string;
     const roleMention = event.targetRoleMention as string;
-    let roleMemberIds: string[];
+    let roleMembers: Array<{ userId: string; isBot: boolean | null }>;
     try {
-      roleMemberIds = await this.guildMembershipChecker.getRoleMemberUserIds(
-        event.guildId,
-        roleId
-      );
+      roleMembers = this.guildMembershipChecker.getRoleMembers
+        ? await this.guildMembershipChecker.getRoleMembers(event.guildId, roleId)
+        : (await this.guildMembershipChecker.getRoleMemberUserIds(event.guildId, roleId)).map(
+            (userId) => ({ userId, isBot: null })
+          );
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "unknown-role-member-lookup-error";
@@ -135,32 +140,31 @@ export class KarmaService {
         roleId,
         error: errorMessage
       });
+      const isMissingAccess = errorMessage.includes("discord-api-status-404");
+      const guidance = isMissingAccess
+        ? "Ensure the bot user is invited to this server with the bot scope and can view members."
+        : "Check DISCORD_BOT_TOKEN and enable Server Members Intent in Discord.";
       return {
         shouldPersist: false,
-        message:
-          `Could not resolve members for ${roleMention}. ` +
-          "Check DISCORD_BOT_TOKEN and enable Server Members Intent in Discord."
+        message: `Could not resolve members for ${roleMention}. ${guidance}`
       };
     }
-    if (roleMemberIds.length === 0) {
+    if (roleMembers.length === 0) {
       return {
         shouldPersist: false,
         message: `No users found in ${roleMention}.`
       };
     }
 
-    const lines: string[] = [];
-    let hasPersistence = false;
-
-    for (const userId of roleMemberIds) {
-      const result = await this.applyKarmaForUser(event, userId, `<@${userId}>`);
-      lines.push(result.message);
-      hasPersistence = hasPersistence || result.shouldPersist;
-    }
+    const results = await Promise.all(
+      roleMembers.map((member) =>
+        this.applyKarmaForUser(event, member.userId, `<@${member.userId}>`, member.isBot)
+      )
+    );
 
     return {
-      shouldPersist: hasPersistence,
-      message: lines.join("\n")
+      shouldPersist: results.some((result) => result.shouldPersist),
+      message: results.map((result) => result.message).join("\n")
     };
   }
 

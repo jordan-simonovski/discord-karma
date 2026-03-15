@@ -358,4 +358,49 @@ describe("KarmaService", () => {
     expect(result.message).toContain("Server Members Intent");
     expect(repo.applyDelta).not.toHaveBeenCalled();
   });
+
+  it("uses bulk role member bot flags to avoid per-user bot lookups", async () => {
+    const repo: KarmaRepository = {
+      getLeaderboard: vi.fn(),
+      applyDelta: vi
+        .fn()
+        .mockResolvedValueOnce({
+          userId: "u1",
+          karmaTotal: 4,
+          karmaMax: 4
+        })
+        .mockResolvedValueOnce({
+          userId: "u2",
+          karmaTotal: 7,
+          karmaMax: 9
+        })
+    };
+    const checker = {
+      isUserInGuild: vi.fn().mockResolvedValue(true),
+      isUserBot: vi.fn(),
+      getRoleMemberUserIds: vi.fn().mockResolvedValue(["u1", "u2", "b1"]),
+      getRoleMembers: vi.fn().mockResolvedValue([
+        { userId: "u1", isBot: false },
+        { userId: "u2", isBot: false },
+        { userId: "b1", isBot: true }
+      ])
+    };
+
+    const service = new KarmaService(repo, () => "snark", checker);
+    const result = await service.handleAction({
+      kind: "karma",
+      actorUserId: "giver",
+      actorMention: "<@giver>",
+      guildId: "g1",
+      targetRoleId: "r1",
+      targetRoleMention: "<@&r1>",
+      symbolRun: "+++",
+      channelId: "c1"
+    });
+
+    expect(checker.getRoleMembers).toHaveBeenCalledWith("g1", "r1");
+    expect(checker.isUserBot).not.toHaveBeenCalled();
+    expect(repo.applyDelta).toHaveBeenCalledTimes(2);
+    expect(result.message).toContain("<@b1>: Bots cannot receive karma.");
+  });
 });

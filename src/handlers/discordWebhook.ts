@@ -1,4 +1,5 @@
 import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
+import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
 import { KarmaService } from "../domain/karmaService";
 import { randomSnarkPicker } from "../presentation/snark";
 import { DynamoKarmaRepository } from "../persistence/dynamoKarmaRepository";
@@ -7,9 +8,17 @@ import {
   type DiscordInteractionPayload
 } from "../platforms/discord/discordInteractionAdapter";
 import { DiscordGuildMembershipChecker } from "../platforms/discord/discordGuildMembershipChecker";
+import type { KarmaActionEvent } from "../platforms/types";
 import { verifyDiscordSignature } from "../platforms/discord/verifyDiscordSignature";
 
 const MAX_SIGNATURE_AGE_SECONDS = 300;
+const sqsClient = new SQSClient({});
+
+interface AsyncRoleKarmaJob {
+  action: KarmaActionEvent;
+  interactionToken: string;
+  applicationId: string;
+}
 
 function readPayload(rawBody: string): DiscordInteractionPayload | null {
   try {
@@ -67,12 +76,31 @@ function isFreshTimestamp(timestamp: string, nowSeconds: number = Date.now() / 1
   return Math.abs(nowSeconds - parsed) <= MAX_SIGNATURE_AGE_SECONDS;
 }
 
+function isRoleKarmaAction(action: unknown): action is KarmaActionEvent {
+  return (
+    typeof action === "object" &&
+    action !== null &&
+    (action as { kind?: string }).kind === "karma" &&
+    typeof (action as { targetRoleId?: unknown }).targetRoleId === "string"
+  );
+}
+
+async function enqueueRoleKarmaJob(queueUrl: string, job: AsyncRoleKarmaJob): Promise<void> {
+  await sqsClient.send(
+    new SendMessageCommand({
+      QueueUrl: queueUrl,
+      MessageBody: JSON.stringify(job)
+    })
+  );
+}
+
 export async function handler(
   event: APIGatewayProxyEventV2
 ): Promise<APIGatewayProxyResultV2> {
   const tableName = process.env.KARMA_TABLE_NAME;
   const discordPublicKey = process.env.DISCORD_PUBLIC_KEY;
   const discordBotToken = process.env.DISCORD_BOT_TOKEN;
+  const asyncQueueUrl = process.env.ASYNC_KARMA_QUEUE_URL;
   const signature = headerValue(event.headers, "x-signature-ed25519");
   const timestamp = headerValue(event.headers, "x-signature-timestamp");
   const rawBody = rawBodyFromEvent(event);
@@ -127,6 +155,32 @@ export async function handler(
         flags: 64
       }
     });
+  }
+
+  if (
+    asyncQueueUrl &&
+    isRoleKarmaAction(action) &&
+    typeof payload.token === "string" &&
+    typeof payload.application_id === "string"
+  ) {
+    try {
+      await enqueueRoleKarmaJob(asyncQueueUrl, {
+        action,
+        interactionToken: payload.token,
+        applicationId: payload.application_id
+      });
+      return response(200, { type: 5 });
+    } catch (error) {
+      console.error("role_karma_enqueue_failed", {
+        error: error instanceof Error ? error.message : "unknown-enqueue-error"
+      });
+      return response(200, {
+        type: 4,
+        data: {
+          content: "I could not queue that role karma job. Try again in a moment."
+        }
+      });
+    }
   }
 
   const service = new KarmaService(
