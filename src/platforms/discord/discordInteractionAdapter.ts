@@ -44,6 +44,18 @@ function optionValue(options: DiscordOption[] | undefined, name: string): string
   return typeof option?.value === "string" ? option.value : null;
 }
 
+function firstTargetOption(options: DiscordOption[] | undefined): DiscordOption | null {
+  if (!options) {
+    return null;
+  }
+  return (
+    options.find((entry) => entry.name === "user") ??
+    options.find((entry) => entry.name === "role") ??
+    options.find((entry) => entry.name === "target") ??
+    null
+  );
+}
+
 export class DiscordInteractionAdapter
   implements PlatformRequestParser<DiscordInteractionPayload>
 {
@@ -77,16 +89,18 @@ export class DiscordInteractionAdapter
     actorUserId: string,
     channelId: string
   ): KarmaActionEvent | null {
-    const targetId =
-      optionValue(payload.data?.options, "target") ?? optionValue(payload.data?.options, "user");
+    const targetOption = firstTargetOption(payload.data?.options);
+    const targetId = typeof targetOption?.value === "string" ? targetOption.value : null;
     const symbolRun = optionValue(payload.data?.options, "action");
     if (!targetId || !symbolRun) {
       return null;
     }
     const resolvedUser = payload.data?.resolved?.users?.[targetId];
     const resolvedRole = payload.data?.resolved?.roles?.[targetId];
+    const isRoleTarget =
+      targetOption?.name === "role" || targetOption?.type === 8 || Boolean(resolvedRole);
 
-    if (resolvedRole) {
+    if (isRoleTarget) {
       return {
         kind: "karma",
         guildId,

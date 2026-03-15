@@ -46,7 +46,8 @@ Register global slash commands for `/karma` and `/leaderboard`.
 
 Options:
 
-- `target`: target user or role
+- `user`: target user (optional)
+- `role`: target role (optional)
 - `action`: symbol run (`++`, `+++`, `--`, etc.)
 
 ```bash
@@ -58,10 +59,16 @@ curl -X POST "https://discord.com/api/v10/applications/YOUR_APPLICATION_ID/comma
     "description": "Give or remove karma",
     "options": [
       {
-        "type": 9,
-        "name": "target",
-        "description": "Target user or role",
-        "required": true
+        "type": 6,
+        "name": "user",
+        "description": "Target user",
+        "required": false
+      },
+      {
+        "type": 8,
+        "name": "role",
+        "description": "Target role",
+        "required": false
       },
       {
         "type": 3,
@@ -104,12 +111,12 @@ Open generated URL and add the bot.
 
 Use:
 
-- `/karma target:@someone action:++` -> +1
-- `/karma target:@someone action:------` -> -5
-- `/karma target:@someone action:+++++++` -> buzzkill rejection
-- `/karma target:@yourself action:++` -> snark self-award rejection
-- `/karma target:@yourself action:--` -> snark self-remove rejection
-- `/karma target:@role action:++` -> applies to each role member and returns per-user lines
+- `/karma user:@someone action:++` -> +1
+- `/karma user:@someone action:------` -> -5
+- `/karma user:@someone action:+++++++` -> buzzkill rejection
+- `/karma user:@yourself action:++` -> snark self-award rejection
+- `/karma user:@yourself action:--` -> snark self-remove rejection
+- `/karma role:@role action:++` -> applies to each role member and returns per-user lines
 - `/leaderboard` -> top 5 users by all-time current karma in this server
 
 ## Troubleshooting
