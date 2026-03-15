@@ -15,6 +15,7 @@ import type { SnarkCategory, SnarkPicker } from "../presentation/snark";
 export interface GuildMembershipChecker {
   isUserInGuild(guildId: string, userId: string): Promise<boolean>;
   isUserBot(guildId: string, userId: string): Promise<boolean | null>;
+  getRoleMemberUserIds(guildId: string, roleId: string): Promise<string[]>;
 }
 
 const LEADERBOARD_SCAN_LIMIT = 25;
@@ -27,45 +28,24 @@ export class KarmaService {
     private readonly pickSnark: SnarkPicker,
     private readonly guildMembershipChecker: GuildMembershipChecker = {
       isUserInGuild: async () => true,
-      isUserBot: async () => null
+      isUserBot: async () => null,
+      getRoleMemberUserIds: async () => []
     }
   ) {}
 
   public async handleAction(event: KarmaActionEvent): Promise<KarmaActionResult> {
-    const targetIsBot =
-      event.targetIsBot ??
-      (await this.guildMembershipChecker.isUserBot(event.guildId, event.targetUserId));
-    if (targetIsBot) {
+    if (event.targetRoleId && event.targetRoleMention) {
+      return this.handleRoleAction(event);
+    }
+
+    if (!event.targetUserId || !event.targetMention) {
       return {
         shouldPersist: false,
-        message: "Bots cannot receive karma."
+        message: "Invalid karma command. Missing target user."
       };
     }
 
-    const outcome = evaluateKarmaAction({
-      actorUserId: event.actorUserId,
-      targetUserId: event.targetUserId,
-      symbolRun: event.symbolRun
-    });
-
-    if (outcome.kind === "reject") {
-      return this.handleRejection(outcome.reason, event.targetMention);
-    }
-
-    const record = await this.repository.applyDelta(
-      event.guildId,
-      event.targetUserId,
-      outcome.delta
-    );
-    return {
-      shouldPersist: true,
-      message: formatKarmaAppliedMessage(
-        event.targetMention,
-        outcome.delta,
-        record,
-        outcome.capped
-      )
-    };
+    return this.applyKarmaForUser(event, event.targetUserId, event.targetMention, event.targetIsBot);
   }
 
   public async handleLeaderboard(
@@ -135,6 +115,65 @@ export class KarmaService {
     return {
       shouldPersist: false,
       message: "Invalid karma command. Use @user ++ to @user ++++++ or -- to ------."
+    };
+  }
+
+  private async handleRoleAction(event: KarmaActionEvent): Promise<KarmaActionResult> {
+    const roleId = event.targetRoleId as string;
+    const roleMention = event.targetRoleMention as string;
+    const roleMemberIds = await this.guildMembershipChecker.getRoleMemberUserIds(event.guildId, roleId);
+    if (roleMemberIds.length === 0) {
+      return {
+        shouldPersist: false,
+        message: `No users found in ${roleMention}.`
+      };
+    }
+
+    const lines: string[] = [];
+    let hasPersistence = false;
+
+    for (const userId of roleMemberIds) {
+      const result = await this.applyKarmaForUser(event, userId, `<@${userId}>`);
+      lines.push(result.message);
+      hasPersistence = hasPersistence || result.shouldPersist;
+    }
+
+    return {
+      shouldPersist: hasPersistence,
+      message: lines.join("\n")
+    };
+  }
+
+  private async applyKarmaForUser(
+    event: KarmaActionEvent,
+    targetUserId: string,
+    targetMention: string,
+    explicitTargetIsBot: boolean | null | undefined = undefined
+  ): Promise<KarmaActionResult> {
+    const targetIsBot =
+      explicitTargetIsBot ??
+      (await this.guildMembershipChecker.isUserBot(event.guildId, targetUserId));
+    if (targetIsBot) {
+      return {
+        shouldPersist: false,
+        message: `${targetMention}: Bots cannot receive karma.`
+      };
+    }
+
+    const outcome = evaluateKarmaAction({
+      actorUserId: event.actorUserId,
+      targetUserId,
+      symbolRun: event.symbolRun
+    });
+
+    if (outcome.kind === "reject") {
+      return this.handleRejection(outcome.reason, targetMention);
+    }
+
+    const record = await this.repository.applyDelta(event.guildId, targetUserId, outcome.delta);
+    return {
+      shouldPersist: true,
+      message: formatKarmaAppliedMessage(targetMention, outcome.delta, record, outcome.capped)
     };
   }
 }

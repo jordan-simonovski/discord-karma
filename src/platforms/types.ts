@@ -3,9 +3,11 @@ export interface KarmaActionEvent {
   guildId: string;
   actorUserId: string;
   actorMention: string;
-  targetUserId: string;
-  targetMention: string;
-  targetIsBot: boolean | null;
+  targetUserId?: string;
+  targetMention?: string;
+  targetIsBot?: boolean | null;
+  targetRoleId?: string;
+  targetRoleMention?: string;
   symbolRun: string;
   channelId: string;
 }

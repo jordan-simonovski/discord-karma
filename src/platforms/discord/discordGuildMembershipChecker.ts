@@ -85,4 +85,36 @@ export class DiscordGuildMembershipChecker implements GuildMembershipChecker {
 
     return null;
   }
+
+  public async getRoleMemberUserIds(guildId: string, roleId: string): Promise<string[]> {
+    if (!this.botToken) {
+      return [];
+    }
+
+    const response = await fetch(
+      `https://discord.com/api/v10/guilds/${encodeURIComponent(guildId)}/roles/${encodeURIComponent(roleId)}/members`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bot ${this.botToken}`
+        },
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+      }
+    ).catch(() => null);
+
+    if (!response || response.status !== 200) {
+      return [];
+    }
+
+    const payload = (await response.json().catch(() => null)) as
+      | Array<{ user?: { id?: string } }>
+      | null;
+    if (!Array.isArray(payload)) {
+      return [];
+    }
+
+    return payload
+      .map((member) => member.user?.id)
+      .filter((userId): userId is string => typeof userId === "string" && userId.length > 0);
+  }
 }

@@ -16,6 +16,7 @@ interface DiscordApplicationCommandData {
   options?: DiscordOption[];
   resolved?: {
     users?: Record<string, { bot?: boolean }>;
+    roles?: Record<string, { id?: string }>;
   };
 }
 
@@ -74,12 +75,28 @@ export class DiscordInteractionAdapter
     actorUserId: string,
     channelId: string
   ): KarmaActionEvent | null {
-    const targetUserId = optionValue(payload.data?.options, "user");
+    const targetId =
+      optionValue(payload.data?.options, "target") ?? optionValue(payload.data?.options, "user");
     const symbolRun = optionValue(payload.data?.options, "action");
-    if (!targetUserId || !symbolRun) {
+    if (!targetId || !symbolRun) {
       return null;
     }
-    const resolvedUser = payload.data?.resolved?.users?.[targetUserId];
+    const resolvedUser = payload.data?.resolved?.users?.[targetId];
+    const resolvedRole = payload.data?.resolved?.roles?.[targetId];
+
+    if (resolvedRole) {
+      return {
+        kind: "karma",
+        guildId,
+        actorUserId,
+        actorMention: `<@${actorUserId}>`,
+        targetRoleId: targetId,
+        targetRoleMention: `<@&${targetId}>`,
+        symbolRun,
+        channelId
+      };
+    }
+
     const targetIsBot = typeof resolvedUser?.bot === "boolean" ? resolvedUser.bot : null;
 
     return {
@@ -87,8 +104,8 @@ export class DiscordInteractionAdapter
       guildId,
       actorUserId,
       actorMention: `<@${actorUserId}>`,
-      targetUserId,
-      targetMention: `<@${targetUserId}>`,
+      targetUserId: targetId,
+      targetMention: `<@${targetId}>`,
       targetIsBot,
       symbolRun,
       channelId

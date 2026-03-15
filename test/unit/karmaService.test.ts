@@ -144,7 +144,8 @@ describe("KarmaService", () => {
     };
     const checker = {
       isUserInGuild: vi.fn().mockResolvedValue(true),
-      isUserBot: vi.fn().mockResolvedValue(true)
+      isUserBot: vi.fn().mockResolvedValue(true),
+      getRoleMemberUserIds: vi.fn().mockResolvedValue([])
     };
 
     const service = new KarmaService(repo, () => "snark", checker);
@@ -206,7 +207,8 @@ describe("KarmaService", () => {
         .fn()
         .mockResolvedValueOnce(true)
         .mockResolvedValueOnce(false),
-      isUserBot: vi.fn().mockResolvedValue(false)
+      isUserBot: vi.fn().mockResolvedValue(false),
+      getRoleMemberUserIds: vi.fn().mockResolvedValue([])
     };
 
     const service = new KarmaService(repo, () => "snark", checker);
@@ -234,7 +236,8 @@ describe("KarmaService", () => {
     };
     const checker = {
       isUserInGuild: vi.fn().mockResolvedValue(false),
-      isUserBot: vi.fn().mockResolvedValue(false)
+      isUserBot: vi.fn().mockResolvedValue(false),
+      getRoleMemberUserIds: vi.fn().mockResolvedValue([])
     };
 
     const service = new KarmaService(repo, () => "snark", checker);
@@ -248,5 +251,80 @@ describe("KarmaService", () => {
 
     expect(result.message).toContain("1. <@u1> — 32");
     expect(result.message).toContain("2. <@u2> — 27");
+  });
+
+  it("applies karma to each member in a role target and returns per-user lines", async () => {
+    const repo: KarmaRepository = {
+      getLeaderboard: vi.fn(),
+      applyDelta: vi
+        .fn()
+        .mockResolvedValueOnce({
+          userId: "u1",
+          karmaTotal: 10,
+          karmaMax: 12
+        })
+        .mockResolvedValueOnce({
+          userId: "u2",
+          karmaTotal: 8,
+          karmaMax: 9
+        })
+    };
+    const checker = {
+      isUserInGuild: vi.fn().mockResolvedValue(true),
+      isUserBot: vi
+        .fn()
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(false),
+      getRoleMemberUserIds: vi.fn().mockResolvedValue(["u1", "u2"])
+    };
+
+    const service = new KarmaService(repo, () => "snark", checker);
+    const result = await service.handleAction({
+      kind: "karma",
+      actorUserId: "giver",
+      actorMention: "<@giver>",
+      guildId: "g1",
+      targetRoleId: "r1",
+      targetRoleMention: "<@&r1>",
+      symbolRun: "+++",
+      channelId: "c1"
+    });
+
+    expect(checker.getRoleMemberUserIds).toHaveBeenCalledWith("g1", "r1");
+    expect(repo.applyDelta).toHaveBeenNthCalledWith(1, "g1", "u1", 2);
+    expect(repo.applyDelta).toHaveBeenNthCalledWith(2, "g1", "u2", 2);
+    expect(result.shouldPersist).toBe(true);
+    expect(result.message).toContain("<@u1>");
+    expect(result.message).toContain("<@u2>");
+    expect(result.message).toContain("\n");
+  });
+
+  it("returns a clear message when the target role has no members", async () => {
+    const repo: KarmaRepository = {
+      getLeaderboard: vi.fn(),
+      applyDelta: vi.fn()
+    };
+    const checker = {
+      isUserInGuild: vi.fn().mockResolvedValue(true),
+      isUserBot: vi.fn().mockResolvedValue(false),
+      getRoleMemberUserIds: vi.fn().mockResolvedValue([])
+    };
+
+    const service = new KarmaService(repo, () => "snark", checker);
+    const result = await service.handleAction({
+      kind: "karma",
+      actorUserId: "giver",
+      actorMention: "<@giver>",
+      guildId: "g1",
+      targetRoleId: "r1",
+      targetRoleMention: "<@&r1>",
+      symbolRun: "+++",
+      channelId: "c1"
+    });
+
+    expect(repo.applyDelta).not.toHaveBeenCalled();
+    expect(result.shouldPersist).toBe(false);
+    expect(result.message).toContain("No users found");
+    expect(result.message).toContain("<@&r1>");
   });
 });

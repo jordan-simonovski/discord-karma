@@ -103,6 +103,39 @@ describe("DiscordInteractionAdapter", () => {
     });
   });
 
+  it("parses /karma role target from mentionable option", () => {
+    const adapter = new DiscordInteractionAdapter();
+    const parsed = adapter.parse({
+      type: 2,
+      guild_id: "g1",
+      channel_id: "c1",
+      member: { user: { id: "111" } },
+      data: {
+        name: "karma",
+        options: [
+          { name: "target", type: 9, value: "r123" },
+          { name: "action", type: 3, value: "++++" }
+        ],
+        resolved: {
+          roles: {
+            r123: { id: "r123" }
+          }
+        }
+      }
+    });
+
+    expect(parsed).toEqual({
+      kind: "karma",
+      actorUserId: "111",
+      actorMention: "<@111>",
+      targetRoleId: "r123",
+      targetRoleMention: "<@&r123>",
+      symbolRun: "++++",
+      guildId: "g1",
+      channelId: "c1"
+    });
+  });
+
   it("returns null when guild id is missing", () => {
     const adapter = new DiscordInteractionAdapter();
     const parsed = adapter.parse({
